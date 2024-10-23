@@ -97,6 +97,7 @@ const createWindow = async () => {
             spellcheck: true,
             webSecurity: false,
             allowRunningInsecureContent: false,
+            contextIsolation: true, // 确保开启 contextIsolation
             preload: app.isPackaged
                 ? path.join(__dirname, 'preload.js')
                 : path.join(__dirname, '../../.erb/dll/preload.js'),
@@ -148,6 +149,29 @@ const createWindow = async () => {
         mainWindow?.webContents.send('system-theme-updated')
     })
 }
+
+ipcMain.on('preview-code', (event, code: string, language: string) => {
+    const previewWindow = new BrowserWindow({
+        width: 800,
+        height: 600,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false
+        }
+    })
+
+    let content = ''
+
+    if (language === 'html') {
+        content = code
+    } else if (language === 'css') {
+        content = `<style>${code}</style><div>Your CSS is applied here!</div>`
+    } else if (language === 'javascript') {
+        content = `<div>Your JS code runs here!</div><script>${code}</script>`
+    }
+
+    previewWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(content)}`)
+})
 
 /**
  * Add event listeners...

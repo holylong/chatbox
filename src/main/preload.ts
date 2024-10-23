@@ -11,6 +11,10 @@ const electronHandler: ElectronIPC = {
         ipcRenderer.on('window-show', callback)
         return () => ipcRenderer.off('window-show', callback)
     },
+
+    previewCode: (code: string, language: string) => {
+        ipcRenderer.send('preview-code', code, language)
+    },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronHandler)

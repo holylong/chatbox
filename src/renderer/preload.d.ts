@@ -8,3 +8,9 @@ declare global {
 }
 
 export {}
+
+
+// src/types/global.d.ts
+export interface ElectronAPI {
+    previewCode: (code: string, language: string) => void;
+}

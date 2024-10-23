@@ -9,10 +9,11 @@ import { useMemo } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { a11yDark, atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import VisibilityIcon from '@mui/icons-material/Visibility'
+import Button from '@mui/material/Button'
 import * as toastActions from '../stores/toastActions'
 import { sanitizeUrl } from '@braintree/sanitize-url'
-
-import 'katex/dist/katex.min.css' // `rehype-katex` does not import the CSS for you
+import 'katex/dist/katex.min.css'
 import { copyToClipboard } from '@/packages/navigator'
 
 export default function Markdown(props: {
@@ -21,40 +22,66 @@ export default function Markdown(props: {
     className?: string
 }) {
     const { children, hiddenCodeCopyButton, className } = props
+    const { t } = useTranslation()
+
+    const handleCopyMarkdown = () => {
+        copyToClipboard(children)
+        toastActions.add(t('Markdown content copied to clipboard'))
+    }
+
     return useMemo(() => (
-        <ReactMarkdown
-            remarkPlugins={
-                [remarkGfm, remarkMath, remarkBreaks]
-            }
-            rehypePlugins={[rehypeKatex]}
-            className={`break-words ${className || ''}`}
-            urlTransform={(url) => sanitizeUrl(url)}
-            components={{
-                code: (props: any) => CodeBlock({ ...props, hiddenCodeCopyButton }),
-                a: ({ node, ...props }) => (
-                    <a
-                        {...props}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => {
-                            e.stopPropagation()
-                        }}
-                    />
-                ),
-            }}
-        >
-            { children }
-        </ReactMarkdown>
+        <div>
+            <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]}
+                rehypePlugins={[rehypeKatex]}
+                className={`break-words ${className || ''}`}
+                urlTransform={(url) => sanitizeUrl(url)}
+                components={{
+                    code: (props: any) => CodeBlock({ ...props, hiddenCodeCopyButton }),
+                    a: ({ node, ...props }) => (
+                        <a
+                            {...props}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                            }}
+                        />
+                    ),
+                }}
+            >
+                {children}
+            </ReactMarkdown>
+            <Button
+                variant="contained"
+                color="primary"
+                startIcon={<ContentCopyIcon />}
+                onClick={handleCopyMarkdown}
+                style={{ marginTop: '10px' }}
+            >
+                Copy All Markdown
+            </Button>
+        </div>
     ), [children])
 }
 
 export function CodeBlock(props: any) {
     const { t } = useTranslation()
     const theme = useTheme()
+
+    const handlePreview = (code: string, language: string) => {
+        if (window.electronAPI && window.electronAPI.previewCode) {
+            window.electronAPI.previewCode(code, language)
+        }
+    }
+
     return useMemo(() => {
         const { children, className, node, hiddenCodeCopyButton, ...rest } = props
         const match = /language-(\w+)/.exec(className || '')
         const language = match?.[1] || 'text'
+
+        const isPreviewable = ['html', 'css', 'javascript'].includes(language)
+
         if (!String(children).includes('\n')) {
             return (
                 <code
@@ -101,34 +128,53 @@ export function CodeBlock(props: any) {
                     </span>
                     {
                         !hiddenCodeCopyButton && (
-                            <ContentCopyIcon
-                                sx={{
-                                    textDecoration: 'none',
-                                    color: 'white',
-                                    padding: '1px',
-                                    margin: '2px 10px 0 10px',
-                                    cursor: 'pointer',
-                                    opacity: 0.5,
-                                    ':hover': {
-                                        backgroundColor: 'rgb(80, 80, 80)',
-                                        opacity: 1,
-                                    },
-                                }}
-                                onClick={() => {
-                                    copyToClipboard(String(children))
-                                    toastActions.add(t('copied to clipboard'))
-                                }}
-                            />
+                            <>
+                                <ContentCopyIcon
+                                    sx={{
+                                        textDecoration: 'none',
+                                        color: 'white',
+                                        padding: '1px',
+                                        margin: '2px 10px 0 10px',
+                                        cursor: 'pointer',
+                                        opacity: 0.5,
+                                        ':hover': {
+                                            backgroundColor: 'rgb(80, 80, 80)',
+                                            opacity: 1,
+                                        },
+                                    }}
+                                    onClick={() => {
+                                        copyToClipboard(String(children))
+                                        toastActions.add(t('copied to clipboard'))
+                                    }}
+                                />
+                                {
+                                    isPreviewable && (
+                                        <VisibilityIcon
+                                            sx={{
+                                                textDecoration: 'none',
+                                                color: 'white',
+                                                padding: '1px',
+                                                margin: '2px 10px 0 10px',
+                                                cursor: 'pointer',
+                                                opacity: 0.5,
+                                                ':hover': {
+                                                    backgroundColor: 'rgb(80, 80, 80)',
+                                                    opacity: 1,
+                                                },
+
+
+                                            }}
+                                            onClick={() => handlePreview(String(children), language)}
+                                        />
+                                    )
+                                }
+                            </>
                         )
                     }
                 </div>
                 <SyntaxHighlighter
                     children={String(children).replace(/\n$/, '')}
-                    style={
-                        theme.palette.mode === 'dark'
-                            ? atomDark
-                            : a11yDark
-                    }
+                    style={theme.palette.mode === 'dark' ? atomDark : a11yDark}
                     language={language}
                     PreTag="div"
                     customStyle={{
